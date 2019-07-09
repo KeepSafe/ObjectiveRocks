@@ -13,7 +13,12 @@ IOS_ARCHIVE_FRAMEWORK_PATH=$BUILD/$IOS_ARCHIVE_DIR/Products/Library/Frameworks/$
 IOS_ARCHIVE_DSYM_PATH=$BUILD/$IOS_ARCHIVE_DIR/dSYMs
 IOS_SIM_DIR=Release-iphonesimulator
 IOS_UNIVERSAL_DIR=Release-universal-iOS
-MACOS_ARCHIVE_DIR=Release-macos-archive
+BUILD_FOR_MAC=false
+if [ "$BUILD_FOR_MAC" = true ] ; then
+  MACOS_ARCHIVE_DIR=Release-macos-archive
+fi
+
+echo "### Should also build for macOS? $BUILD_FOR_MAC"
 
 echo "### Cleaning up after old builds"
 rm -Rf $BUILD
@@ -42,23 +47,35 @@ echo "### lipo'ing the iOS dSYMs together into a universal dSYM"
 DSYM_PATH=$DSYM_NAME_WITH_EXT/Contents/Resources/DWARF/$FRAMEWORK
 lipo -create $IOS_ARCHIVE_DSYM_PATH/$DSYM_PATH $BUILD/$IOS_SIM_DIR/$DSYM_PATH  -output $BUILD/$IOS_UNIVERSAL_DIR/$DSYM_PATH
 
-# macOS
-echo "### BUILDING FOR macOS"
-echo "### Building for device (Archive)"
-xcodebuild archive -workspace ObjectiveRocks.xcworkspace -scheme ObjectiveRocks -archivePath $BUILD/Release-macos.xcarchive OTHER_CFLAGS="-fembed-bitcode" BITCODE_GENERATION_MODE=bitcode | xcpretty
-mv $BUILD/Release-macos.xcarchive $BUILD/$MACOS_ARCHIVE_DIR
+if [ "$BUILD_FOR_MAC" = true ] ; then
+  # macOS
+  echo "### BUILDING FOR macOS"
+  echo "### Building for device (Archive)"
+  xcodebuild archive -workspace ObjectiveRocks.xcworkspace -scheme ObjectiveRocks -archivePath $BUILD/Release-macos.xcarchive OTHER_CFLAGS="-fembed-bitcode" BITCODE_GENERATION_MODE=bitcode | xcpretty
+  mv $BUILD/Release-macos.xcarchive $BUILD/$MACOS_ARCHIVE_DIR
+fi
 
 # Rename and zip
-echo "### Copying iOS and macOS files into zip directory"
+echo "### Copying iOS files into zip directory"
 ZIP_DIR=$BUILD/zip
 mkdir $ZIP_DIR
 cp -RL LICENSE $ZIP_DIR
+
 mkdir $ZIP_DIR/iOS
-mkdir $ZIP_DIR/macOS
 cp -RL $BUILD/$IOS_UNIVERSAL_DIR/$FRAMEWORK_NAME_WITH_EXT $ZIP_DIR/iOS/$FRAMEWORK_NAME_WITH_EXT
 cp -RL $BUILD/$IOS_UNIVERSAL_DIR/$DSYM_NAME_WITH_EXT $ZIP_DIR/iOS/$DSYM_NAME_WITH_EXT
-cp -RL $BUILD/$MACOS_ARCHIVE_DIR/Products/Library/Frameworks/$FRAMEWORK_NAME_WITH_EXT $ZIP_DIR/macOS/$FRAMEWORK_NAME_WITH_EXT
-cp -RL $BUILD/$MACOS_ARCHIVE_DIR/dSYMs/$DSYM_NAME_WITH_EXT $ZIP_DIR/macOS/$DSYM_NAME_WITH_EXT
+
+if [ "$BUILD_FOR_MAC" = true ] ; then
+  echo "### Copying macOS files into zip directory"
+  mkdir $ZIP_DIR/macOS
+  cp -RL $BUILD/$MACOS_ARCHIVE_DIR/Products/Library/Frameworks/$FRAMEWORK_NAME_WITH_EXT $ZIP_DIR/macOS/$FRAMEWORK_NAME_WITH_EXT
+  cp -RL $BUILD/$MACOS_ARCHIVE_DIR/dSYMs/$DSYM_NAME_WITH_EXT $ZIP_DIR/macOS/$DSYM_NAME_WITH_EXT
+fi
+
 cd $ZIP_DIR
-zip -r ObjectiveRocks.zip LICENSE iOS/$FRAMEWORK_NAME_WITH_EXT iOS/$DSYM_NAME_WITH_EXT macOS/$FRAMEWORK_NAME_WITH_EXT macOS/$DSYM_NAME_WITH_EXT
+if [ "$BUILD_FOR_MAC" = true ] ; then
+  zip -r ObjectiveRocks.zip LICENSE iOS/$FRAMEWORK_NAME_WITH_EXT iOS/$DSYM_NAME_WITH_EXT macOS/$FRAMEWORK_NAME_WITH_EXT macOS/$DSYM_NAME_WITH_EXT
+else
+  zip -r ObjectiveRocks.zip LICENSE iOS/$FRAMEWORK_NAME_WITH_EXT iOS/$DSYM_NAME_WITH_EXT
+fi
 echo "### Zipped resulting frameworks and dSYMs to $ZIP_DIR/ObjectiveRocks.zip"
