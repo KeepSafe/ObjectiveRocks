@@ -34,12 +34,13 @@ echo "### BUILDING FOR iOS"
 echo "### Building for device (Archive)"
 xcodebuild archive -workspace ObjectiveRocks.xcworkspace -scheme ObjectiveRocks-iOS -sdk iphoneos -archivePath $BUILD/Release-iphoneos.xcarchive OTHER_CFLAGS="-fembed-bitcode" BITCODE_GENERATION_MODE=bitcode | xcpretty
 echo "### Building for simulator (Release)"
-xcodebuild build -workspace ObjectiveRocks.xcworkspace -scheme ObjectiveRocks-iOS -configuration Release -sdk iphonesimulator SYMROOT=$BUILD OTHER_CFLAGS="-fembed-bitcode" BITCODE_GENERATION_MODE=bitcode | xcpretty
+xcodebuild build -workspace ObjectiveRocks.xcworkspace -scheme ObjectiveRocks-iOS -configuration Release -sdk iphonesimulator ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO SYMROOT=$BUILD OTHER_CFLAGS="-fembed-bitcode" BITCODE_GENERATION_MODE=bitcode | xcpretty
 echo "### Copying framework files"
 mv $BUILD/Release-iphoneos.xcarchive $BUILD/$IOS_ARCHIVE_DIR
 mkdir -p $BUILD/$IOS_UNIVERSAL_DIR
 cp -RL $IOS_ARCHIVE_FRAMEWORK_PATH $BUILD/$IOS_UNIVERSAL_DIR/$FRAMEWORK_NAME_WITH_EXT
 cp -RL $IOS_ARCHIVE_DSYM_PATH/$DSYM_NAME_WITH_EXT $BUILD/$IOS_UNIVERSAL_DIR/$DSYM_NAME_WITH_EXT
+# if it exists, copy over the swiftmodule... no worries if not
 cp -RL $BUILD/$IOS_SIM_DIR/$FRAMEWORK_NAME_WITH_EXT/Modules/$FRAMEWORK.swiftmodule/* $BUILD/$IOS_UNIVERSAL_DIR/$FRAMEWORK_NAME_WITH_EXT/Modules/$FRAMEWORK.swiftmodule
 echo "### lipo'ing the iOS frameworks together into universal framework"
 lipo -create $IOS_ARCHIVE_FRAMEWORK_PATH/$FRAMEWORK $BUILD/$IOS_SIM_DIR/$FRAMEWORK_NAME_WITH_EXT/$FRAMEWORK -output $BUILD/$IOS_UNIVERSAL_DIR/$FRAMEWORK_NAME_WITH_EXT/$FRAMEWORK
